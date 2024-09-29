@@ -1,0 +1,253 @@
+---
+title: "MATERNAL MORTALITY RATIO IN AFRICA [2000 - 2017]"
+author: "Trokon O. Yeabah"
+format: dashboard
+theme: lux
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+
+```{r}
+# Load packages 
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(tidyverse, 
+               here,
+               sf,
+               bslib, 
+               bsicons,
+               rnaturalearth, 
+               plotly, 
+               countrycode, 
+               htmltools, 
+               reactable,
+               janitor)
+
+```
+```{r}
+mmr_who <- read_csv(here("data/mmr_who.csv"))
+
+mmr_pivot <- mmr_who %>% 
+  pivot_longer(cols = 2:19,
+               names_to = "years",
+               values_to = "mmr")
+```
+
+```{r}
+mmr_2017 <- mmr_pivot %>% 
+  filter(years == 2017)
+
+highest_mmr_country_17 <- mmr_2017 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(country)
+
+highest_mmr_value_17 <- mmr_2017 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(mmr) %>% 
+  round(1)
+
+
+mmr_2016 <- mmr_pivot %>% 
+  filter(years == 2016)
+
+highest_mmr_country_16 <- mmr_2016 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(country)
+
+highest_mmr_value_16 <- mmr_2016 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(mmr) %>% 
+  round(1)
+
+
+mmr_2015 <- mmr_pivot %>% 
+  filter(years == 2015)
+
+highest_mmr_country_15 <- mmr_2015 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(country)
+
+highest_mmr_value_15 <- mmr_2015 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(mmr) %>% 
+  round(1)
+
+
+mmr_2014 <- mmr_pivot %>% 
+  filter(years == 2014)
+
+highest_mmr_country_14 <- mmr_2014 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(country)
+
+highest_mmr_value_14 <- mmr_2014 %>% 
+  arrange(-mmr) %>% 
+  head(1) %>% 
+  pull(mmr) %>% 
+  round(1)
+
+```
+
+
+```{r}
+
+country_shapes <- rnaturalearth::ne_countries()
+
+mmr_pivot <- mmr_pivot %>% 
+  mutate(country_code = countrycode(country,
+                                    "country.name", 
+                                    "iso3c"))
+
+mmr_map <- left_join(country_shapes, mmr_pivot,
+          by = c("adm0_a3" = "country_code")) %>%
+  mutate(tooltip_label = paste(country, 
+                               round(mmr, 1),
+                               sep = ":")) %>% 
+  ggplot() +
+  geom_sf(aes(fill = mmr, text = tooltip_label)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+gap_map_ggplotly <- ggplotly(mmr_map, tooltip = "text")
+```
+
+```{r}
+top_20_countries <- mmr_2017 %>% 
+  arrange(desc(mmr)) %>% 
+  head(15) %>% 
+  mutate(tooltip_label = paste(country, 
+                               round(mmr, 1),
+                               sep = ":")) %>%
+  ggplot(aes(y = reorder(country, mmr),
+             x = mmr,
+             fill = mmr,
+             text = tooltip_label)) +
+  geom_col() +
+  geom_text(aes(label = round(mmr, 1)), 
+            nudge_x = -10, 
+            color = "white") +
+  labs(y = "Country",
+       x = "Maternal Mortality Ratio") +
+  theme(legend.position = "none")
+
+top_20_countries_plotly <- ggplotly(top_20_countries, tooltip = "text")
+```
+
+```{r}
+mmr_chart <- mmr_pivot %>% 
+ mutate(years = as.numeric(years)) %>% 
+ ggplot(aes(x = years, y = mmr, color = country, frame = years)) +
+ geom_point() +
+ scale_x_log10() +
+ theme_minimal() +
+  labs(y = "Maternal Mortality Ratio",
+       x = "Years") 
+```
+
+
+
+# Home
+
+## Row {height=25%}
+
+```{r}
+value_box(
+  title = "Highest MMR in 2017",
+  value = highest_mmr_value_17,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg = "blue"),
+  p(paste0("(", highest_mmr_country_17, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest MMR in 2016",
+  value = highest_mmr_value_16,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg = "orange"),
+  p(paste0("(", highest_mmr_country_16, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest MMR in 2015",
+  value = highest_mmr_value_15,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg = "purple"),
+  p(paste0("(", highest_mmr_country_15, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest MMR in 2014",
+  value = highest_mmr_value_14,
+  showcase = bsicons::bs_icon("graph-up"),
+  theme = value_box_theme(bg = "#2c22e3"),
+  p(paste0("(", highest_mmr_country_14, ")"))
+)
+```
+
+
+## Row {height=75%}
+```{r title = "Top 15 Countries by Maternal Mortality Ratio"}
+top_20_countries_plotly
+```
+
+```{r title = "Maternal Mortality across reporting years"}
+ggplotly(mmr_chart)
+```
+
+# Map
+
+### Row {height=100%}
+```{r title = "Map of Countries by Maternal Mortality Ratio"}
+gap_map_ggplotly
+```
+
+
+# Dataset
+
+The data used in this dashboard is shown below and can be downloaded as a CSV. 
+
+```{r}
+
+htmltools::browsable(
+  tagList(
+    reactable(mmr_who,
+              elementId = "mmr-table",
+              searchable = T, 
+              filterable = T),
+    
+    tags$button("Download as CSV", 
+                onclick = "Reactable.downloadDataCSV('mmr-table')"),))
+```
+
+
+# About
+
+This data comes from the Gapminder Foundation that is sourced from this link: http://gapm.io/dmmr_WHO. 
+
+Gapminder has imported data on Maternal Mortality Ratio from World Health Organization (WHO). Maternal mortality ratio is the number of women who die from pregnancy-related causes while pregnant or within 42 days of pregnancy termination per 100,000 live births. The data are estimated with a regression model using information on the proportion of maternal deaths among non-AIDS deaths in women ages 15-49, fertility, birth attendants, and GDP measured using purchasing power parities (PPPs).
+
+Maternal mortality is generally of unknown reliability, as are many other cause-specific mortality indicators. Household surveys such as Demographic and Health Surveys attempt to measure maternal mortality by asking respondents about survivorship of sisters. The main disadvantage of this method is that the estimates of maternal mortality that it produces pertain to any time within the past few years before the survey, making them unsuitable for monitoring recent changes or observing the impact of interventions. In addition, measurement of maternal mortality is subject to many types of errors. Even in high-income countries with reliable vital registration systems, misclassification of maternal deaths has been found to lead to serious underestimation. The estimates are based on an exercise by the Maternal Mortality Estimation Inter-Agency Group (MMEIG) which consists of World Health Organization (WHO), United Nations Children's Fund (UNICEF), World Bank, and United Nations Population Fund (UNFPA), and include country-level time series data. For countries without complete registration data but with other types of data and for countries with no data, maternal mortality is estimated with a regression model using available national maternal mortality data and socioeconomic information.
+
+Data is available for countries years 2000 to 2017.
+
+
+
+
+
+
+
